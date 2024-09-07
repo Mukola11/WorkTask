@@ -1,76 +1,101 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using System.Threading.Tasks;
+using WorkTask.Data;
 using WorkTask.Models;
 using WorkTask.Services;
 
 namespace WorkTask.Controllers
 {
-    [ApiController]
+
     [Route("api/[controller]")]
+    [ApiController]
     public class AuthController : ControllerBase
     {
-        private readonly UserService _userService;
+        private readonly IUserService _userService;
+        private readonly IConfiguration _configuration;
 
-        public AuthController(UserService userService)
+        public AuthController(IUserService userService, IConfiguration configuration)
         {
             _userService = userService;
+            _configuration = configuration;
         }
 
+        // POST: /api/auth/register
         [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] UserRegistrationDto registrationDto)
+        public async Task<IActionResult> Register(UserRegistrationDto request)
         {
-            var userExists = await _userService.UserExistsAsync(registrationDto.Username, registrationDto.Email);
-
-            if (userExists)
+            if (await _userService.UserExists(request.Email, request.Username))
             {
-                return BadRequest("User already exists.");
+                return BadRequest("User with this email or username already exists.");
             }
 
-            var user = await _userService.RegisterUserAsync(
-                registrationDto.Username,
-                registrationDto.Email,
-                registrationDto.Password);
+            var user = new User
+            {
+                Username = request.Username,
+                Email = request.Email,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password)
+            };
 
-            return Ok(user);
+            await _userService.CreateUserAsync(user);
+
+            return Ok("User registered successfully.");
         }
 
+        // POST: /api/auth/login
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] UserLoginDto loginDto)
+        public async Task<IActionResult> Login(UserLoginDto request)
         {
-
-            var user = await _userService.AuthenticateUserAsync(loginDto.Username, loginDto.Password);
-
-            if (user == null)
+            var user = await _userService.GetUserByEmailOrUsernameAsync(request.UsernameOrEmail);
+            if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             {
-                return Unauthorized();
+                return Unauthorized("Invalid credentials.");
             }
-
 
             var token = GenerateJwtToken(user);
 
-            return Ok(new { Token = token });
+            return Ok(new { token });
         }
 
+        // JWT token generation
         private string GenerateJwtToken(User user)
         {
-            var key = Encoding.ASCII.GetBytes("your-very-strong-and-secure-secret-key-123456789012");
             var tokenHandler = new JwtSecurityTokenHandler();
+            var key = Encoding.ASCII.GetBytes(_configuration["Jwt:Key"]);
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(new Claim[]
                 {
-                    new Claim(ClaimTypes.Name, user.Username),
-                    new Claim(ClaimTypes.Email, user.Email)
+                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                     new Claim(ClaimTypes.Name, user.Username)
                 }),
                 Expires = DateTime.UtcNow.AddHours(1),
+                Issuer = _configuration["Jwt:Issuer"],
+                Audience = _configuration["Jwt:Audience"],
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
             };
             var token = tokenHandler.CreateToken(tokenDescriptor);
             return tokenHandler.WriteToken(token);
+        }
+
+        // test
+        [Authorize] 
+        [HttpGet("check-auth")]
+        public IActionResult CheckAuth()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var username = User.Identity?.Name;
+
+            return Ok(new
+            {
+                Message = "JWT token is valid!",
+                UserId = userId,
+                Username = username
+            });
         }
     }
 }
