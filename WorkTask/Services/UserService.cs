@@ -1,10 +1,10 @@
-﻿using WorkTask.Models;
+﻿using Microsoft.EntityFrameworkCore;
 using WorkTask.Data;
-using Microsoft.EntityFrameworkCore;
+using WorkTask.Models;
 
 namespace WorkTask.Services
 {
-    public class UserService
+    public class UserService : IUserService
     {
         private readonly AppDbContext _context;
 
@@ -13,38 +13,21 @@ namespace WorkTask.Services
             _context = context;
         }
 
-        public async Task<bool> UserExistsAsync(string username, string email)
+        public async Task<bool> UserExists(string email, string username)
         {
-            return await _context.Users.AnyAsync(u => u.Username == username || u.Email == email);
+            return await _context.Users.AnyAsync(u => u.Email == email || u.Username == username);
         }
 
-        public async Task<User> RegisterUserAsync(string username, string email, string password)
+        public async Task CreateUserAsync(User user)
         {
-            var passwordHash = BCrypt.Net.BCrypt.HashPassword(password);
-
-            var user = new User
-            {
-                Username = username,
-                Email = email,
-                PasswordHash = passwordHash
-            };
-
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
-
-            return user;
         }
 
-        public async Task<User?> AuthenticateUserAsync(string username, string password)
+        public async Task<User> GetUserByEmailOrUsernameAsync(string usernameOrEmail)
         {
-            var user = await _context.Users.SingleOrDefaultAsync(u => u.Username == username);
-
-            if (user == null || !BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
-            {
-                return null;
-            }
-
-            return user;
+            return await _context.Users
+                .FirstOrDefaultAsync(u => u.Email == usernameOrEmail || u.Username == usernameOrEmail);
         }
     }
 }
