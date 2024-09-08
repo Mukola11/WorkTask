@@ -29,10 +29,16 @@ namespace WorkTask.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register(UserRegistrationDto request)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
             if (await _userService.UserExists(request.Email, request.Username))
             {
                 return BadRequest("User with this email or username already exists.");
             }
+
+            if (!request.IsPasswordValid())
+                return BadRequest("Password does not meet complexity requirements. It must be at least 8 characters long, contain uppercase, lowercase letters, a digit, and a special character.");
 
             var user = new User
             {
