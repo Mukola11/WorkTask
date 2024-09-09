@@ -10,7 +10,7 @@
 
         public DateTime? DueDate { get; set; }
 
-        public TaskStatus Status { get; set; } = TaskStatus.Pending;
+        public TaskStatus Status { get; set; } = TaskStatus.InProgress;
 
         public TaskPriority Priority { get; set; } = TaskPriority.Medium;
 
