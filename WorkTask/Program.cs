@@ -15,6 +15,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // Add the UserService service
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<ITaskService, TaskService>();
 
 // Set up JWT authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt");
