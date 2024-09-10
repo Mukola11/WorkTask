@@ -12,7 +12,7 @@ using WorkTask.Data;
 namespace WorkTask.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20240905114948_InitialCreate")]
+    [Migration("20240910000725_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
