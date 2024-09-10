@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
+using Serilog;
 using System.Text;
 using WorkTask.Data;
 using WorkTask.Services;
@@ -8,6 +10,14 @@ using WorkTask.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Налаштування Serilog для логування у файл
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .WriteTo.File("Logs/worktask-.txt",
+    rollingInterval: RollingInterval.Day)
+    .CreateLogger();
+
+builder.Host.UseSerilog();
 
 //Set up a database connection
 builder.Services.AddDbContext<AppDbContext>(options =>

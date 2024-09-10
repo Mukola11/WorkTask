@@ -11,34 +11,44 @@ using WorkTask.Services;
 
 namespace WorkTask.Controllers
 {
-
     [Route("api/[controller]")]
     [ApiController]
     public class AuthController : ControllerBase
     {
         private readonly IUserService _userService;
         private readonly IConfiguration _configuration;
+        private readonly ILogger<AuthController> _logger;
 
-        public AuthController(IUserService userService, IConfiguration configuration)
+        public AuthController(IUserService userService, IConfiguration configuration, ILogger<AuthController> logger)
         {
             _userService = userService;
             _configuration = configuration;
+            _logger = logger;
         }
 
         // POST: /api/auth/register
         [HttpPost("register")]
         public async Task<IActionResult> Register(UserRegistrationDto request)
         {
+            _logger.LogInformation("Registering user with email {Email} and username {Username}", request.Email, request.Username);
+
             if (!ModelState.IsValid)
+            {
+                _logger.LogWarning("Invalid model state for user registration");
                 return BadRequest(ModelState);
+            }
 
             if (await _userService.UserExists(request.Email, request.Username))
             {
+                _logger.LogWarning("User with email {Email} or username {Username} already exists", request.Email, request.Username);
                 return BadRequest("User with this email or username already exists.");
             }
 
             if (!request.IsPasswordValid())
-                return BadRequest("Password does not meet complexity requirements. It must be at least 8 characters long, contain uppercase, lowercase letters, a digit, and a special character.");
+            {
+                _logger.LogWarning("Password does not meet complexity requirements for user {Username}", request.Username);
+                return BadRequest("Password does not meet complexity requirements.");
+            }
 
             var user = new User
             {
@@ -48,6 +58,7 @@ namespace WorkTask.Controllers
             };
 
             await _userService.CreateUserAsync(user);
+            _logger.LogInformation("User {Username} registered successfully", request.Username);
 
             return Ok("User registered successfully.");
         }
@@ -56,13 +67,17 @@ namespace WorkTask.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login(UserLoginDto request)
         {
+            _logger.LogInformation("User login attempt with email or username {UsernameOrEmail}", request.UsernameOrEmail);
+
             var user = await _userService.GetUserByEmailOrUsernameAsync(request.UsernameOrEmail);
             if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             {
+                _logger.LogWarning("Invalid login attempt for {UsernameOrEmail}", request.UsernameOrEmail);
                 return Unauthorized("Invalid credentials.");
             }
 
             var token = GenerateJwtToken(user);
+            _logger.LogInformation("User {Username} logged in successfully", user.Username);
 
             return Ok(new { token });
         }
@@ -77,7 +92,7 @@ namespace WorkTask.Controllers
                 Subject = new ClaimsIdentity(new Claim[]
                 {
                     new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                     new Claim(ClaimTypes.Name, user.Username)
+                    new Claim(ClaimTypes.Name, user.Username)
                 }),
                 Expires = DateTime.UtcNow.AddHours(1),
                 Issuer = _configuration["Jwt:Issuer"],
@@ -89,12 +104,14 @@ namespace WorkTask.Controllers
         }
 
         // test
-        [Authorize] 
+        [Authorize]
         [HttpGet("check-auth")]
         public IActionResult CheckAuth()
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var username = User.Identity?.Name;
+
+            _logger.LogInformation("Auth check for user {Username} with ID {UserId}", username, userId);
 
             return Ok(new
             {

@@ -14,12 +14,13 @@ namespace WorkTask.Controllers
     public class TaskController : ControllerBase
     {
         private readonly ITaskService _taskService;
+        private readonly ILogger<TaskController> _logger;
 
-        public TaskController(ITaskService taskService)
+        public TaskController(ITaskService taskService, ILogger<TaskController> logger)
         {
             _taskService = taskService;
+            _logger = logger;
         }
-
 
         [HttpPost]
         public async Task<IActionResult> CreateTask([FromBody] UserTaskDto taskDto)
@@ -28,31 +29,37 @@ namespace WorkTask.Controllers
 
             if (userId == null)
             {
+                _logger.LogWarning("User ID is null while creating task.");
                 return Unauthorized();
             }
 
             var userGuid = Guid.Parse(userId);
 
+            _logger.LogInformation("Creating task for user {UserId}", userId);
             var newTask = await _taskService.CreateTaskAsync(taskDto, userGuid);
 
+            _logger.LogInformation("Task created successfully with ID {TaskId}", newTask.Id);
 
             return CreatedAtAction(nameof(CreateTask), new { id = newTask.Id }, newTask);
         }
 
-
         [HttpGet]
         public async Task<IActionResult> GetTasks([FromQuery] TaskFilterDto filter,
-                                          [FromQuery] SortByOptions sortBy = SortByOptions.DueDate,
-                                          [FromQuery] SortOrder sortOrder = SortOrder.Ascending)
+                                                  [FromQuery] SortByOptions sortBy = SortByOptions.DueDate,
+                                                  [FromQuery] SortOrder sortOrder = SortOrder.Ascending)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             if (userId == null)
             {
+                _logger.LogWarning("User ID is null while fetching tasks.");
                 return Unauthorized();
             }
 
+            _logger.LogInformation("Fetching tasks for user {UserId} with filter {Filter}", userId, filter);
             var tasks = await _taskService.GetTasksAsync(Guid.Parse(userId), filter, sortBy, sortOrder);
+
+            _logger.LogInformation("Fetched {TaskCount} tasks for user {UserId}", tasks.Count(), userId);
 
             return Ok(tasks);
         }
@@ -64,15 +71,20 @@ namespace WorkTask.Controllers
 
             if (userId == null)
             {
+                _logger.LogWarning("User ID is null while fetching task with ID {TaskId}", id);
                 return Unauthorized();
             }
 
+            _logger.LogInformation("Fetching task with ID {TaskId} for user {UserId}", id, userId);
             var task = await _taskService.GetTaskByIdAsync(id, Guid.Parse(userId));
 
             if (task == null)
             {
+                _logger.LogWarning("Task with ID {TaskId} not found or not authorized for user {UserId}", id, userId);
                 return NotFound();
             }
+
+            _logger.LogInformation("Task with ID {TaskId} fetched successfully for user {UserId}", id, userId);
 
             return Ok(task);
         }
@@ -82,6 +94,7 @@ namespace WorkTask.Controllers
         {
             if (!ModelState.IsValid)
             {
+                _logger.LogWarning("Invalid model state while updating task with ID {TaskId}", id);
                 return BadRequest(ModelState);
             }
 
@@ -89,15 +102,20 @@ namespace WorkTask.Controllers
 
             if (userId == null)
             {
+                _logger.LogWarning("User ID is null while updating task with ID {TaskId}", id);
                 return Unauthorized();
             }
 
+            _logger.LogInformation("Updating task with ID {TaskId} for user {UserId}", id, userId);
             var updatedTask = await _taskService.UpdateTaskAsync(id, Guid.Parse(userId), taskDto);
 
             if (updatedTask == null)
             {
-                return NotFound("Task not found or not authorized to update.");
+                _logger.LogWarning("Task with ID {TaskId} not found or not authorized for user {UserId}", id, userId);
+                return NotFound();
             }
+
+            _logger.LogInformation("Task with ID {TaskId} updated successfully for user {UserId}", id, userId);
 
             return Ok(updatedTask);
         }
@@ -109,19 +127,22 @@ namespace WorkTask.Controllers
 
             if (userId == null)
             {
+                _logger.LogWarning("User ID is null while deleting task with ID {TaskId}", id);
                 return Unauthorized();
             }
 
-            var result = await _taskService.DeleteTaskAsync(id, Guid.Parse(userId));
+            _logger.LogInformation("Deleting task with ID {TaskId} for user {UserId}", id, userId);
+            var success = await _taskService.DeleteTaskAsync(id, Guid.Parse(userId));
 
-            if (!result)
+            if (!success)
             {
-                return NotFound("Task not found or not authorized to delete.");
+                _logger.LogWarning("Task with ID {TaskId} not found or not authorized for user {UserId}", id, userId);
+                return NotFound();
             }
+
+            _logger.LogInformation("Task with ID {TaskId} deleted successfully for user {UserId}", id, userId);
 
             return NoContent();
         }
-
     }
-
 }
