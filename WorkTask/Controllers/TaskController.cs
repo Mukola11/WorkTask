@@ -8,6 +8,7 @@ using static WorkTask.Models.SortingOptions;
 
 namespace WorkTask.Controllers
 {
+    // Controller for managing tasks, requires authorization
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
@@ -16,12 +17,14 @@ namespace WorkTask.Controllers
         private readonly ITaskService _taskService;
         private readonly ILogger<TaskController> _logger;
 
+        // Constructor
         public TaskController(ITaskService taskService, ILogger<TaskController> logger)
         {
             _taskService = taskService;
             _logger = logger;
         }
 
+        // Endpoint for creating a new task
         [HttpPost]
         public async Task<IActionResult> CreateTask([FromBody] UserTaskDto taskDto)
         {
@@ -43,6 +46,7 @@ namespace WorkTask.Controllers
             return CreatedAtAction(nameof(CreateTask), new { id = newTask.Id }, newTask);
         }
 
+        // Endpoint for retrieving tasks with optional filters and sorting
         [HttpGet]
         public async Task<IActionResult> GetTasks([FromQuery] TaskFilterDto filter,
                                                   [FromQuery] SortByOptions sortBy = SortByOptions.DueDate,
@@ -64,6 +68,7 @@ namespace WorkTask.Controllers
             return Ok(tasks);
         }
 
+        // Endpoint for retrieving a specific task by ID
         [HttpGet("{id}")]
         public async Task<IActionResult> GetTaskById(Guid id)
         {
@@ -89,6 +94,7 @@ namespace WorkTask.Controllers
             return Ok(task);
         }
 
+        // Endpoint for updating a specific task by ID
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateTask(Guid id, [FromBody] UserTaskDto taskDto)
         {
@@ -120,6 +126,7 @@ namespace WorkTask.Controllers
             return Ok(updatedTask);
         }
 
+        // Endpoint for deleting a specific task by ID
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTask(Guid id)
         {

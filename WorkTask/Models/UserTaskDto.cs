@@ -1,5 +1,6 @@
 ﻿namespace WorkTask.Models
 {
+    // Data Transfer Object (DTO) representing a task for communication between layers
     public class UserTaskDto
     {
         public Guid Id { get; set; } 

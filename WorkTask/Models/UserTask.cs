@@ -1,5 +1,6 @@
 ﻿namespace WorkTask.Models
 {
+    // Represents a task within the system, including its details and relationships
     public class UserTask
     {
         public Guid Id { get; set; } = Guid.NewGuid();

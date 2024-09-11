@@ -19,6 +19,7 @@ namespace WorkTask.Controllers
         private readonly IConfiguration _configuration;
         private readonly ILogger<AuthController> _logger;
 
+        // Constructor 
         public AuthController(IUserService userService, IConfiguration configuration, ILogger<AuthController> logger)
         {
             _userService = userService;
@@ -26,30 +27,34 @@ namespace WorkTask.Controllers
             _logger = logger;
         }
 
-        // POST: /api/auth/register
+        // Endpoint for user registration
         [HttpPost("register")]
         public async Task<IActionResult> Register(UserRegistrationDto request)
         {
             _logger.LogInformation("Registering user with email {Email} and username {Username}", request.Email, request.Username);
 
+            // Check if the model state is valid
             if (!ModelState.IsValid)
             {
                 _logger.LogWarning("Invalid model state for user registration");
                 return BadRequest(ModelState);
             }
 
+            // Check if user already exists
             if (await _userService.UserExists(request.Email, request.Username))
             {
                 _logger.LogWarning("User with email {Email} or username {Username} already exists", request.Email, request.Username);
                 return BadRequest("User with this email or username already exists.");
             }
 
+            // Validate password complexity
             if (!request.IsPasswordValid())
             {
                 _logger.LogWarning("Password does not meet complexity requirements for user {Username}", request.Username);
                 return BadRequest("Password does not meet complexity requirements.");
             }
 
+            // Create new user
             var user = new User
             {
                 Username = request.Username,
@@ -63,12 +68,13 @@ namespace WorkTask.Controllers
             return Ok("User registered successfully.");
         }
 
-        // POST: /api/auth/login
+        // Endpoint for user login
         [HttpPost("login")]
         public async Task<IActionResult> Login(UserLoginDto request)
         {
             _logger.LogInformation("User login attempt with email or username {UsernameOrEmail}", request.UsernameOrEmail);
 
+            // Retrieve user by email or username
             var user = await _userService.GetUserByEmailOrUsernameAsync(request.UsernameOrEmail);
             if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             {
@@ -76,13 +82,14 @@ namespace WorkTask.Controllers
                 return Unauthorized("Invalid credentials.");
             }
 
+            // Generate JWT token
             var token = GenerateJwtToken(user);
             _logger.LogInformation("User {Username} logged in successfully", user.Username);
 
             return Ok(new { token });
         }
 
-        // JWT token generation
+        // Generate JWT token for the authenticated user
         private string GenerateJwtToken(User user)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
@@ -103,22 +110,5 @@ namespace WorkTask.Controllers
             return tokenHandler.WriteToken(token);
         }
 
-        // test
-        [Authorize]
-        [HttpGet("check-auth")]
-        public IActionResult CheckAuth()
-        {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var username = User.Identity?.Name;
-
-            _logger.LogInformation("Auth check for user {Username} with ID {UserId}", username, userId);
-
-            return Ok(new
-            {
-                Message = "JWT token is valid!",
-                UserId = userId,
-                Username = username
-            });
-        }
     }
 }

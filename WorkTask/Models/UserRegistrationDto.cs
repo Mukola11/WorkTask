@@ -1,5 +1,6 @@
 ﻿namespace WorkTask.Models
 {
+    // Data transfer object for user registration
     public class UserRegistrationDto
     {
         public string Username { get; set; }

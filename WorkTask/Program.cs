@@ -10,13 +10,12 @@ using WorkTask.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Налаштування Serilog для логування у файл
+// Set up Serilog for logging to a file
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .WriteTo.File("Logs/worktask-.txt",
     rollingInterval: RollingInterval.Day)
     .CreateLogger();
-
 builder.Host.UseSerilog();
 
 //Set up a database connection
@@ -55,7 +54,6 @@ builder.Services.AddAuthentication(options =>
 
 //Set up controllers
 builder.Services.AddControllers();
-
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
